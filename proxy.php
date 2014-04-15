@@ -5,7 +5,6 @@ F5 iControl Proxy for v11.4+
 The purpose of this script is to proxy ReST iControl API commands to the F5. This script will provide the credentials and SSL socket necessary to communicate with the F5.
 
 There are a limited number of allowed commands.
-Based on https://github.com/Alexxz/Simple-php-proxy-script/blob/master/src/index.php
 */
 
 require('proxy_include.ini');
@@ -86,15 +85,13 @@ curl_setopt($ch, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT']);
 
 if ( $_SERVER['REQUEST_METHOD'] == "POST" ) {
 	curl_setopt($ch, CURLOPT_HTTPHEADER, array( 'Content-Type: application/json'));
+	if( sizeof($postdata) > 0 )
+	{ 
+    	curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);  
+	}
 }
 
 curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
-
-/* pass POST params */
-if( sizeof($postdata) > 0 )
-{ 
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);  
-}
 
 $res = curl_exec($ch);
 curl_close($ch);
