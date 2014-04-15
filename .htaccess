@@ -1,0 +1,6 @@
+#File should be named .htaccess, and exist in the same directory as proxy.php
+#This uses mod_rewrite to rewrite http://f5/ to http://f5/proxy.php
+
+RewriteEngine ON
+RewriteCond %{REQUEST_URI} !^/proxy.php
+RewriteRule ^(.*)$ http://localhost:8888/proxy.php/$1 [NC,L]
