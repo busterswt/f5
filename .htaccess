@@ -3,4 +3,4 @@
 
 RewriteEngine ON
 RewriteCond %{REQUEST_URI} !^/proxy.php
-RewriteRule ^(.*)$ http://localhost:8888/proxy.php/$1 [NC,L]
+RewriteRule ^(.*)$ /proxy.php/$1 [NC,PT]
