@@ -12,7 +12,7 @@ require('proxy_include.ini');
 /* Perform simple authentication check to the proxy */
 
 if ( ($_SERVER['PHP_AUTH_USER'] != $proxy_username) || ($_SERVER['PHP_AUTH_PW'] != $proxy_password)) {
-        die(http_response_code(403));
+        die(http_response_code(401));
 }
 
 /* Perform URI validation to only permit certain requests */
