@@ -1,5 +1,6 @@
 #File should be named .htaccess, and exist in the same directory as proxy.php
 #This uses mod_rewrite to rewrite http://f5/ to http://f5/proxy.php
+#The php script handles removing proxy.php before sending to the F5.
 
 RewriteEngine ON
 RewriteCond %{REQUEST_URI} !^/proxy.php
