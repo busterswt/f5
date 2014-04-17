@@ -2,7 +2,8 @@ To use this script, you'll need specific /etc/hosts files entries on both the pr
 
 On the client-side:
 
-```/etc/hosts
+```
+/etc/hosts
 ip.of.proxy.server f5
 ```
 On the proxy server:
