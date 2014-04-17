@@ -73,13 +73,13 @@ create_http_virtual(bigip, VS_NAME, VS_ADDRESS, VS_PORT, POOL_NAME)
 print "created virtual server \"%s\" with destination %s:%s..." % (VS_NAME, VS_ADDRESS, VS_PORT)
 
 # sleep for a little while
-#print "sleeping for %s seconds, check for successful creation..." % SLEEP_TIME
-#time.sleep(SLEEP_TIME)
+print "sleeping for %s seconds, check for successful creation..." % SLEEP_TIME
+time.sleep(SLEEP_TIME)
 
 # delete virtual
-#print "deleted virtual server \"%s\"..." % VS_NAME
-#delete_virtual(bigip, VS_NAME)
+print "deleted virtual server \"%s\"..." % VS_NAME
+delete_virtual(bigip, VS_NAME)
 
 # delete pool
-#print "deleted pool \"%s\"..." % POOL_NAME
-#delete_pool(bigip, POOL_NAME)
+print "deleted pool \"%s\"..." % POOL_NAME
+delete_pool(bigip, POOL_NAME)
