@@ -9,14 +9,6 @@ There are a limited number of allowed commands.
 
 require('proxy_include.ini');
 
-# Configuration options that should be moved to proxy_include.ini:
-#$dest_host = "f5";
-#$proxy_base_url = '/'; 
-#$f5_username = 'jdenton-admin';
-#$f5_password = 'openstack';
-#$allowedMethod = array("GET","POST");
-#$allowedURI = array("/mgmt/tm/ltm/pool","/mgmt/tm/ltm/virtual");
-
 /* Perform URI validation to only permit certain requests */
 
 $methodAllowed = false;
@@ -25,7 +17,7 @@ $uriAllowed = false;
 foreach ($allowedMethod as $method) {
 	if ( is_numeric (strrpos($_SERVER['REQUEST_METHOD'], $method))) {
 		$methodAllowed = true;
-		break;	
+		break;
 	}
 }
 
@@ -37,7 +29,7 @@ if ( !$methodAllowed ) {
 foreach ($allowedURI as $uri) {
 	error_log ($uri);
 	if ( is_numeric(strrpos($_SERVER['REQUEST_URI'], $uri))) {
-		$uriAllowed = true;	
+		$uriAllowed = true;
 		break;
 	}
 }
@@ -57,7 +49,7 @@ $proxy_base_url_canonical = rtrim($proxy_base_url, '/ ') . '/';
 //check if valid
 if( strpos($_SERVER['REQUEST_URI'], $proxy_base_url) !== 0 )
 {
-    die("The config paramter \$prox_base_url \"$proxy_base_url\" that you specified 
+    die("The config paramter \$prox_base_url \"$proxy_base_url\" that you specified
         does not match the beginning of the request URI: ".
         $_SERVER['REQUEST_URI']);
 }
@@ -81,13 +73,15 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
 curl_setopt($ch, CURLOPT_HEADER, 1);
+curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $_SERVER['REQUEST_METHOD']);
 curl_setopt($ch, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT']);
+curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
 
-if ( $_SERVER['REQUEST_METHOD'] == "POST" ) {
-	curl_setopt($ch, CURLOPT_HTTPHEADER, array( 'Content-Type: application/json'));
+if ( $_SERVER['REQUEST_METHOD'] == "POST" || "PUT") {
+#	curl_setopt($ch, CURLOPT_HTTPHEADER, array( 'Content-Type: application/json'));
 	if( sizeof($postdata) > 0 )
-	{ 
-    	curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);  
+	{
+	curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
 	}
 }
 
@@ -97,7 +91,7 @@ $res = curl_exec($ch);
 curl_close($ch);
 
 
-/* Proxy Response */  
+/* Proxy Response */
 $proxied_headers = array('Content-Type','Location');
 
 list($headers, $body) = explode("\r\n\r\n", $res, 2);
@@ -112,7 +106,7 @@ foreach($headers as $header)
         list($h, $v) = explode(':', $header);
         $hs[$h][] = $v;
     }
-    else 
+    else
     {
         $header1  = $header;
     }
