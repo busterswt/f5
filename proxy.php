@@ -69,12 +69,13 @@ if( strpos($proxy_request_url, 'index.php') === 0 )
 }
 
 //final proxied request url
-$proxy_request_url = "https://".$f5_username.":".$f5_password.'@'. rtrim($dest_host, '/ ') . '/' . $proxy_request_url;
+$proxy_request_url = "https://". rtrim($dest_host, '/ ') . '/' . $proxy_request_url;
 
 /* Init CURL */
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $proxy_request_url);
 curl_setopt($ch, CURLOPT_AUTOREFERER, 1);
+curl_setopt($ch, CURLOPT_USERPWD, "$f5_username:$f5_password");
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
@@ -92,14 +93,11 @@ if ( $_SERVER['REQUEST_METHOD'] == "POST" || "PUT") {
 }
 
 curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
-
 $res = curl_exec($ch);
 curl_close($ch);
 
-
 /* Proxy Response */
 $proxied_headers = array('Content-Type','Location');
-
 list($headers, $body) = explode("\r\n\r\n", $res, 2);
 
 $headers = explode("\r\n", $headers);
