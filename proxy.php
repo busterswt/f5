@@ -46,7 +46,7 @@ foreach ($allowedURI as $uri) {
 
 if ( !$uriAllowed ) {
 	error_log("Request URI not allowed - ".$_SERVER['REMOTE_ADDR']." - ".$_SERVER['REQUEST_URI']);
-	die(http_response_code(405));
+	die(http_response_code(403));
 }
 /* END Uri Validation */
 
