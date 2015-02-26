@@ -11,7 +11,11 @@ require('proxy_include.ini');
 
 /* Perform simple authentication check to the proxy */
 
-if ( ($_SERVER['PHP_AUTH_USER'] != $proxy_username) || ($_SERVER['PHP_AUTH_PW'] != $proxy_password)) {
+if (isset($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW'])) {
+        if ( ($_SERVER['PHP_AUTH_USER'] != $proxy_username) || ($_SERVER['PHP_AUTH_PW'] != $proxy_password)) {
+                die(http_response_code(401));
+        }
+} else {
         die(http_response_code(401));
 }
 
