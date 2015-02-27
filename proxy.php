@@ -2,9 +2,12 @@
 /*
 F5 iControl Proxy for v11.4+
 
-The purpose of this script is to proxy ReST iControl API commands to the F5. This script will provide the credentials and SSL socket necessary to communicate with the F5.
+The purpose of this script is to proxy ReST iControl API commands to the F5. 
+This script will provide the credentials and SSL socket necessary to communicate with the F5.
 
 There are a limited number of allowed commands.
+
+james.denton@rackspace.com
 */
 
 require('proxy_include.ini');
@@ -19,8 +22,9 @@ if (isset($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW'])) {
         die(http_response_code(401));
 }
 
-/* Perform URI validation to only permit certain requests */
+/* BEGIN URI VALIDATION */
 
+//Initialize variables
 $methodAllowed = false;
 $uriAllowed = false;
 
@@ -48,9 +52,10 @@ if ( !$uriAllowed ) {
 	error_log("Request URI not allowed - ".$_SERVER['REMOTE_ADDR']." - ".$_SERVER['REQUEST_URI']);
 	die(http_response_code(403));
 }
-/* END Uri Validation */
+/* END URI VALIDATION */
 
-//Implement a fix to populate the $_POST variable. $_POST is normally only populated by URL encoded form data
+//Implement a fix to populate the $_POST variable. 
+//$_POST is normally only populated by URL encoded form data
 $postdata = file_get_contents("php://input");
 
 //canonical trailing slash
