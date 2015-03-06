@@ -34,20 +34,20 @@ function matchIpSubnet($user_ip,$cidrs) {
         }
     return $validaddr;
 
-//    if ($validaddr) {
-//        error_log("CORRECT IP ADDRESS");
-//    } else {
-//        error_log("INCORRECT IP ADDRESS");
-//    }
 }
+
+function validateToken($token) {
+
+}
+
+
 
 
 require('proxy_include.ini');
 
 
-//final proxied request url
 $vipNetwork = 'bcb082fd-1b0a-40d7-9aa1-a5d181d9dbcb';
-$authToken = '51fe21d63a3645d4832ebe3d3fc3dd5e';
+//$authToken = '77c590f89ba941b29b52ec0623f8dc79';
 
 
 /* Perform simple authentication check to the proxy */
@@ -59,6 +59,10 @@ if (isset($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW'])) {
 } else {
         die(http_response_code(401));
 }
+
+/* Check to see OpenStack token was passed by the client and that it was valid */
+// Not yet implemented
+
 
 /* BEGIN URI VALIDATION */
 
@@ -118,6 +122,18 @@ if( strpos($proxy_request_url, 'index.php') === 0 )
 //final proxied request url
 $proxy_request_url = "https://".$f5_username.":".$f5_password.'@'. rtrim($dest_host, '/ ') . '/' . $proxy_request_url;
 
+// Procure the OpenStack token from the payload
+// and test to make sure its valid
+
+$requestPayload = json_decode($postdata, true);
+//if ( isset($requestPayload['token'])) {
+//    $openstackToken = $requestPayload['token'];
+//} else {
+//    error_log("No token specified");
+//    header('HTTP/1.1 401 Token Not Specified');
+//    die();
+//}
+
 /* Init CURL */
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $proxy_request_url);
@@ -131,12 +147,12 @@ curl_setopt($ch, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT']);
 curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
 
 if ( $_SERVER['REQUEST_METHOD'] == "POST" ) {
-    error_log("This is a post? ".$_SERVER['REQUEST_METHOD']); // Debug
+    error_log("Is this a post? ".$_SERVER['REQUEST_METHOD']); // Debug
     // Pull out the destination IP so we can compare it to Neutron subnets
     // and see if it is an allowed VIP
     if ( is_numeric(strrpos($_SERVER['REQUEST_URI'], "/mgmt/tm/ltm/virtual"))) {
-        $requestData = json_decode($postdata, true);
-        $user_ip = strtok($requestData['destination'],":"); // This is the destination IP in user JSON
+//        $requestData = json_decode($postdata, true);
+        $user_ip = strtok($requestPayload['destination'],":"); // This is the destination IP in user JSON
 
         $neutron_network_url = "http://172.29.236.10:9696/v2.0/networks/".$vipNetwork.".json";
         // Perform a CURL to Neutron
@@ -146,11 +162,11 @@ if ( $_SERVER['REQUEST_METHOD'] == "POST" ) {
         curl_setopt($neutronCurl, CURLOPT_HEADER, 0);
         curl_setopt($neutronCurl, CURLOPT_CUSTOMREQUEST, "GET");
         curl_setopt($neutronCurl, CURLOPT_USERAGENT, "JAMES PROXY");
-        curl_setopt($neutronCurl, CURLOPT_HTTPHEADER, array('X-Auth-Token: '.$authToken));
+        curl_setopt($neutronCurl, CURLOPT_HTTPHEADER, array('X-Auth-Token: '.$_SERVER['X-Auth-Token']));
 //        curl_setopt($neutronCurl, CURLOPT_HTTPHEADER, array('Accept: application/json'));
         curl_setopt($neutronCurl, CURLOPT_URL, $neutron_network_url);
         $neutronCurlReturn = curl_exec($neutronCurl);
-        //die($neutronCurlReturn);
+//        die($neutronCurlReturn);
         $returnedJson = json_decode($neutronCurlReturn, true);
 
         // Initialize an array to store the subnets associated with the network
@@ -175,6 +191,7 @@ if ( $_SERVER['REQUEST_METHOD'] == "POST" ) {
 //        die(var_dump($subnetArray)); // Debug
     }
 
+    error_log($postdata);
     if( sizeof($postdata) > 0 )	{
         curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
     }
