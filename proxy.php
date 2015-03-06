@@ -2,7 +2,7 @@
 /*
 F5 iControl Proxy for v11.4+
 
-The purpose of this script is to proxy ReST iControl API commands to the F5. 
+The purpose of this script is to proxy ReST iControl API commands to the F5.
 This script will provide the credentials and SSL socket necessary to communicate with the F5.
 
 There are a limited number of allowed commands.
@@ -10,7 +10,45 @@ There are a limited number of allowed commands.
 james.denton@rackspace.com
 */
 
+function IPvsCIDR($user_ip, $cidr) {
+    $parts = explode('/', $cidr);
+    $ipc = explode('.', $parts[0]);
+    foreach ($ipc as &$v) {
+        $v = str_pad(decbin($v), 8, '0', STR_PAD_LEFT);
+    }
+    $ipc = substr(join('', $ipc), 0, $parts[1]);
+    $ipu = explode('.', $user_ip);
+    foreach ($ipu as &$v) {
+        $v = str_pad(decbin($v), 8, '0', STR_PAD_LEFT);
+    }
+    $ipu = substr(join('', $ipu), 0, $parts[1]);
+    return $ipu == $ipc;
+}
+
+function matchIpSubnet($user_ip,$cidrs) {
+    $validaddr = false;
+    foreach ($cidrs as $addr)
+        if (IPvsCIDR($user_ip, $addr)) {
+            $validaddr = true;
+            break;
+        }
+    return $validaddr;
+
+//    if ($validaddr) {
+//        error_log("CORRECT IP ADDRESS");
+//    } else {
+//        error_log("INCORRECT IP ADDRESS");
+//    }
+}
+
+
 require('proxy_include.ini');
+
+
+//final proxied request url
+$vipNetwork = 'bcb082fd-1b0a-40d7-9aa1-a5d181d9dbcb';
+$authToken = '51fe21d63a3645d4832ebe3d3fc3dd5e';
+
 
 /* Perform simple authentication check to the proxy */
 
@@ -54,7 +92,7 @@ if ( !$uriAllowed ) {
 }
 /* END URI VALIDATION */
 
-//Implement a fix to populate the $_POST variable. 
+//Implement a fix to populate the $_POST variable.
 //$_POST is normally only populated by URL encoded form data
 $postdata = file_get_contents("php://input");
 
@@ -92,12 +130,54 @@ curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $_SERVER['REQUEST_METHOD']);
 curl_setopt($ch, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT']);
 curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
 
-if ( $_SERVER['REQUEST_METHOD'] == "POST" || "PUT") {
-#	curl_setopt($ch, CURLOPT_HTTPHEADER, array( 'Content-Type: application/json'));
-	if( sizeof($postdata) > 0 )
-	{
-	curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
-	}
+if ( $_SERVER['REQUEST_METHOD'] == "POST" ) {
+    error_log("This is a post? ".$_SERVER['REQUEST_METHOD']); // Debug
+    // Pull out the destination IP so we can compare it to Neutron subnets
+    // and see if it is an allowed VIP
+    if ( is_numeric(strrpos($_SERVER['REQUEST_URI'], "/mgmt/tm/ltm/virtual"))) {
+        $requestData = json_decode($postdata, true);
+        $user_ip = strtok($requestData['destination'],":"); // This is the destination IP in user JSON
+
+        $neutron_network_url = "http://172.29.236.10:9696/v2.0/networks/".$vipNetwork.".json";
+        // Perform a CURL to Neutron
+        $neutronCurl = curl_init();
+        curl_setopt($neutronCurl, CURLOPT_AUTOREFERER, 1);
+        curl_setopt($neutronCurl, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($neutronCurl, CURLOPT_HEADER, 0);
+        curl_setopt($neutronCurl, CURLOPT_CUSTOMREQUEST, "GET");
+        curl_setopt($neutronCurl, CURLOPT_USERAGENT, "JAMES PROXY");
+        curl_setopt($neutronCurl, CURLOPT_HTTPHEADER, array('X-Auth-Token: '.$authToken));
+//        curl_setopt($neutronCurl, CURLOPT_HTTPHEADER, array('Accept: application/json'));
+        curl_setopt($neutronCurl, CURLOPT_URL, $neutron_network_url);
+        $neutronCurlReturn = curl_exec($neutronCurl);
+        //die($neutronCurlReturn);
+        $returnedJson = json_decode($neutronCurlReturn, true);
+
+        // Initialize an array to store the subnets associated with the network
+        $subnetArray = array();
+        foreach ($returnedJson['network']['subnets'] as $subnetid) {
+//            error_log ($subnetid);
+            $neutron_subnet_url = "http://172.29.236.10:9696/v2.0/subnets.json?fields=id&fields=cidr&id=".$subnetid;
+            curl_setopt($neutronCurl, CURLOPT_URL, $neutron_subnet_url);
+            $neutronSubnetReturn = curl_exec($neutronCurl);
+            $returnedSubnetJson = json_decode($neutronSubnetReturn, true);
+
+            foreach ($returnedSubnetJson['subnets'] as $subnetCidr) {
+//                error_log($subnetCidr['cidr']); // Debug
+               array_push($subnetArray,$subnetCidr['cidr']);
+            }
+        }
+        $validDestIp = matchIpSubnet($user_ip,$subnetArray);
+        if ( ! $validDestIp) {
+            header('HTTP/1.1 403 IP Addr No Matchy');
+            die();
+        }
+//        die(var_dump($subnetArray)); // Debug
+    }
+
+    if( sizeof($postdata) > 0 )	{
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
+    }
 }
 
 curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
