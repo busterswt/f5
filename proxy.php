@@ -10,45 +10,7 @@ There are a limited number of allowed commands.
 james.denton@rackspace.com
 */
 
-function IPvsCIDR($user_ip, $cidr) {
-    $parts = explode('/', $cidr);
-    $ipc = explode('.', $parts[0]);
-    foreach ($ipc as &$v) {
-        $v = str_pad(decbin($v), 8, '0', STR_PAD_LEFT);
-    }
-    $ipc = substr(join('', $ipc), 0, $parts[1]);
-    $ipu = explode('.', $user_ip);
-    foreach ($ipu as &$v) {
-        $v = str_pad(decbin($v), 8, '0', STR_PAD_LEFT);
-    }
-    $ipu = substr(join('', $ipu), 0, $parts[1]);
-    return $ipu == $ipc;
-}
-
-function matchIpSubnet($user_ip,$cidrs) {
-    $validaddr = false;
-    foreach ($cidrs as $addr)
-        if (IPvsCIDR($user_ip, $addr)) {
-            $validaddr = true;
-            break;
-        }
-    return $validaddr;
-
-}
-
-function validateToken($token) {
-
-}
-
-
-
-
 require('proxy_include.ini');
-
-
-$vipNetwork = 'bcb082fd-1b0a-40d7-9aa1-a5d181d9dbcb';
-//$authToken = '77c590f89ba941b29b52ec0623f8dc79';
-
 
 /* Perform simple authentication check to the proxy */
 
@@ -148,55 +110,8 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
 
 $requestMethod = strtoupper($_SERVER['REQUEST_METHOD']);
 if ( $requestMethod == ("POST" || "PUT") ) {
-    error_log("Is this a post? ".$_SERVER['REQUEST_METHOD']); // Debug
-    // Pull out the destination IP so we can compare it to Neutron subnets
-    // and see if it is an allowed VIP
-    if ( is_numeric(strrpos($_SERVER['REQUEST_URI'], "/mgmt/tm/ltm/virtual"))) {
-//        $requestData = json_decode($postdata, true);
-
-        if ( isset($requestPayload['destination'])) {
-            $user_ip = strtok($requestPayload['destination'],":"); // This is the destination IP in user JSON
-
-
-            $neutron_network_url = "http://172.29.236.10:9696/v2.0/networks/".$vipNetwork.".json";
-            // Perform a CURL to Neutron
-            $neutronCurl = curl_init();
-            curl_setopt($neutronCurl, CURLOPT_AUTOREFERER, 1);
-            curl_setopt($neutronCurl, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($neutronCurl, CURLOPT_HEADER, 0);
-            curl_setopt($neutronCurl, CURLOPT_CUSTOMREQUEST, "GET");
-            curl_setopt($neutronCurl, CURLOPT_USERAGENT, "JAMES PROXY");
-            curl_setopt($neutronCurl, CURLOPT_HTTPHEADER, array('X-Auth-Token: '.$_SERVER['X-Auth-Token']));
-    //        curl_setopt($neutronCurl, CURLOPT_HTTPHEADER, array('Accept: application/json'));
-            curl_setopt($neutronCurl, CURLOPT_URL, $neutron_network_url);
-            $neutronCurlReturn = curl_exec($neutronCurl);
-    //        die($neutronCurlReturn);
-            $returnedJson = json_decode($neutronCurlReturn, true);
-
-            // Initialize an array to store the subnets associated with the network
-            $subnetArray = array();
-            foreach ($returnedJson['network']['subnets'] as $subnetid) {
-    //            error_log ($subnetid);
-                $neutron_subnet_url = "http://172.29.236.10:9696/v2.0/subnets.json?fields=id&fields=cidr&id=".$subnetid;
-                curl_setopt($neutronCurl, CURLOPT_URL, $neutron_subnet_url);
-                $neutronSubnetReturn = curl_exec($neutronCurl);
-                $returnedSubnetJson = json_decode($neutronSubnetReturn, true);
-
-                foreach ($returnedSubnetJson['subnets'] as $subnetCidr) {
-    //                error_log($subnetCidr['cidr']); // Debug
-                   array_push($subnetArray,$subnetCidr['cidr']);
-                }
-            }
-            $validDestIp = matchIpSubnet($user_ip,$subnetArray);
-            if ( ! $validDestIp) {
-                header('HTTP/1.1 403 IP Addr No Matchy');
-                die();
-            }
-    //        die(var_dump($subnetArray)); // Debug
-        }
-
-    }
-    error_log($postdata);
+    error_log("Request method? ".$_SERVER['REQUEST_METHOD']); // Debug
+   
     if( sizeof($postdata) > 0 )	{
         curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
     }
