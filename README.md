@@ -15,7 +15,7 @@ The include file contains credentials that allow users to interface with the pro
 
 To test, execute the following from the client:
 ```
-curl -k -X GET https://user:pass@f5/mgmt/tm/ltm/pool | python -mjson.tool
+curl -k -X GET  -u user:pass https://f5/mgmt/tm/ltm/pool | python -mjson.tool
 ```
 Refer to the F5 ReST API guide at:
 https://devcentral.f5.com/d/icontrol-rest-user-guide
