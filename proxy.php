@@ -10,7 +10,54 @@ There are a limited number of allowed commands.
 james.denton@rackspace.com
 */
 
-require('proxy_include.ini');
+require('/etc/f5proxy/proxy_include.ini');
+
+function checkForPartition($proxy_request_url,$requestPayload,$customerPartition) {
+    /* 2-6-2017
+    Test to make sure the URI either contains the customer partition
+    name, or it's included in the payload */
+
+    // First, test to see if partition was passed in URL string
+    $input = $proxy_request_url;
+    preg_match('/\~(.*?)\~/', $input, $output);
+    if ( isset($output[1]) ){
+        $partitionSentURL = $output[1]; // Will be the partition name in the URL
+    } else {
+        $partitionSentURL = "";
+    }
+
+    $partitionSpecifiedURL = false; // Initialize
+    if( $partitionSentURL == $customerPartition ) {
+        $partitionSpecifiedURL = true; // Customer partition name exists in the URL.
+        // Test to see if partition is passed in payload.
+        if ( isset($requestPayload['partition']) ) {
+            // Test to make sure partition passed in payload matches expected customer partition
+            if ( $requestPayload['partition'] !== $customerPartition ) {
+                header('HTTP/1.1 400 Partition Access Not Allowed');
+                die();
+            }
+            else { return true; }
+        }
+        else { return true; }
+    }
+    elseif( !$partitionSpecifiedURL and isset($requestPayload['partition']) ) {
+        if ( $requestPayload['partition'] !== $customerPartition ) {
+                header('HTTP/1.1 400 Partition Access Not Allowed');
+                die();
+        }
+        else { return true; }
+    }
+    elseif( !isset($_GET['$filter']) ) {
+        header('HTTP/1.1 400 Partition Not Specified or Access Not Allowed');
+        die();
+    }
+    elseif( $_SERVER['REQUEST_METHOD'] === 'GET' ){
+        return true; // If $filter is set, and method is GET, go ahead and return.
+                     // Not ideal... need better way to determine partition name
+    }
+    else { return false; }
+}
+
 
 /* Perform simple authentication check to the proxy */
 
@@ -96,67 +143,72 @@ $requestPayload = json_decode($postdata, true);
 //    die();
 //}
 
-/* Init CURL */
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $proxy_request_url);
-curl_setopt($ch, CURLOPT_AUTOREFERER, 1);
-curl_setopt($ch, CURLOPT_USERPWD, "$f5_username:$f5_password");
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-curl_setopt($ch, CURLOPT_HEADER, 1);
-curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $_SERVER['REQUEST_METHOD']);
-curl_setopt($ch, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT']);
-curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+// If we're here, the request *should* be valid
+if (checkForPartition($proxy_request_url,$requestPayload,$customerPartition)) {
 
-$requestMethod = strtoupper($_SERVER['REQUEST_METHOD']);
-if ( $requestMethod == ("POST" || "PUT") ) {
-    error_log("Request method? ".$_SERVER['REQUEST_METHOD']); // Debug
-   
-    if( sizeof($postdata) > 0 )	{
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
-    }
-}
+    /* Init CURL */
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $proxy_request_url);
+    curl_setopt($ch, CURLOPT_AUTOREFERER, 1);
+    curl_setopt($ch, CURLOPT_USERPWD, "$f5_username:$f5_password");
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+    curl_setopt($ch, CURLOPT_HEADER, 1);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $_SERVER['REQUEST_METHOD']);
+    curl_setopt($ch, CURLOPT_USERAGENT, $_SERVER['HTTP_USER_AGENT']);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
 
-curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
-$res = curl_exec($ch);
-curl_close($ch);
+    $requestMethod = strtoupper($_SERVER['REQUEST_METHOD']);
+    if ( $requestMethod == ("POST" || "PUT") ) {
+        error_log("Request method? ".$_SERVER['REQUEST_METHOD']); // Debug
 
-/* Proxy Response */
-$proxied_headers = array('Content-Type','Location');
-list($headers, $body) = explode("\r\n\r\n", $res, 2);
-
-$headers = explode("\r\n", $headers);
-$hs = array();
-
-foreach($headers as $header)
-{
-    if( false !== strpos($header, ':') )
-    {
-        list($h, $v) = explode(':', $header);
-        $hs[$h][] = $v;
-    }
-    else
-    {
-        $header1  = $header;
-    }
-}
-
-list($proto, $code, $text) = explode(' ', $header1);
-header($_SERVER['SERVER_PROTOCOL'] . ' ' . $code . ' ' . $text);
-
-foreach($proxied_headers as $hname)
-{
-    if( isset($hs[$hname]) )
-    {
-        foreach( $hs[$hname] as $v )
-        {
-            header($hname.": " . $v);
+        if( sizeof($postdata) > 0 )	{
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $postdata);
         }
     }
-}
-/* End Response */
 
-die($body);
+    curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
+    $res = curl_exec($ch);
+    curl_close($ch);
+
+    /* Proxy Response */
+    $proxied_headers = array('Content-Type','Location');
+    list($headers, $body) = explode("\r\n\r\n", $res, 2);
+
+    $headers = explode("\r\n", $headers);
+    $hs = array();
+
+    foreach($headers as $header)
+    {
+        if( false !== strpos($header, ':') )
+        {
+            list($h, $v) = explode(':', $header);
+            $hs[$h][] = $v;
+        }
+        else
+        {
+            $header1  = $header;
+        }
+    }
+
+    list($proto, $code, $text) = explode(' ', $header1);
+    header($_SERVER['SERVER_PROTOCOL'] . ' ' . $code . ' ' . $text);
+
+    foreach($proxied_headers as $hname)
+    {
+        if( isset($hs[$hname]) )
+        {
+            foreach( $hs[$hname] as $v )
+            {
+                header($hname.": " . $v);
+            }
+        }
+    }
+    /* End Response */
+
+    die($body);
+}
+
 
 ?>
