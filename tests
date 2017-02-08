@@ -1,0 +1,53 @@
+# Create pool: (GOOD)
+curl -v -sk -u 'user:pass' -H "Content-Type: application/json" \
+-X POST https://localhost/mgmt/tm/ltm/pool \
+-d '{"name":"test-pool","partition":"Customer","members":[{"name":"proxy-test:443","address":"10.0.0.1","partition":"Customer"}]}'
+
+# List Pools (OK - User can filter any partition)
+curl -v -sk -u 'user:pass' -H "Content-Type: application/json" \
+-X GET https://localhost/mgmt/tm/ltm/pool?\$filter=partition+eq+Customer
+
+# List members (GOOD)
+curl -v -sk -u 'user:pass' -H "Content-Type: application/json" \
+-X GET https://localhost/mgmt/tm/ltm/pool/~Customer~test-pool/members/
+
+# Add member (GOOD)
+curl -v -sk -u 'user:pass' -H "Content-Type: application/json" \
+-X POST https://localhost/mgmt/tm/ltm/pool/~Customer~test-pool/members \
+-d '{"name":"10.0.0.2:80", "address":"10.0.0.2", "partition":"Customer"}'
+
+# Delete member (GOOD)
+curl -v -sk -u 'user:pass' -H "Content-Type: application/json" \
+-X DELETE https://localhost/mgmt/tm/ltm/pool/~Customer~test-pool/members/~Customer~10.0.0.2:80
+
+# Delete pool (GOOD)
+curl -v -sk -u 'user:pass' -H "Content-Type: application/json" \
+-X DELETE https://localhost/mgmt/tm/ltm/pool/~Customer~test-pool
+
+=== Validate authentication fails:
+
+curl -v -sk -u 'user:pass000' -H "Content-Type: application/json" \
+-X POST https://localhost/mgmt/tm/ltm/pool \
+-d '{"name":"test-pool","partition":"Customer","members":[{"name":"proxy-test:443","address":"10.0.0.1","partition":"Customer"}]}'
+
+=== Validate pool creation with wrong partition fails
+
+curl -v -sk -u 'user:pass' -H "Content-Type: application/json" \
+-X POST https://localhost/mgmt/tm/ltm/pool \
+-d '{"name":"test-pool","partition":"Customer555","members":[{"name":"proxy-test:443","address":"10.0.0.1","partition":"Customer"}]}'
+
+=== Validate listing of pool members in wrong partition fails
+
+curl -v -sk -u 'user:pass' -H "Content-Type: application/json" \
+-X GET https://localhost/mgmt/tm/ltm/pool/~Customer555~test-pool/members/
+
+=== Validate inability to hit other areas
+
+curl -v -sk -u 'user:pass' -H "Content-Type: application/json" \
+-X GET https://localhost/mgmt/tm/ltm/node/
+
+curl -v -sk -u 'user:pass' -H "Content-Type: application/json" \
+-X GET https://localhost/mgmt/tm/net/vlan
+
+curl -v -sk -u 'user:pass' -H "Content-Type: application/json" \
+-X GET https://localhost/mgmt/tm/sys/snmp
